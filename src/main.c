@@ -9,34 +9,31 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include "terminal.h"  // اگر بعد میں terminal.sh کال کرنا ہے تو یہ شامل رہے گا
-
-// Screen dimensions اور typing effect کا سپیڈ
+#include "terminal.h" 
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 const int TYPING_SPEED_MS = 40;
-const Uint32 DIALOGUE_HIDE_DELAY = 5000; // 5 سیکنڈ
+const Uint32 DIALOGUE_HIDE_DELAY = 5000; // 5 
 
-// مختلف UI کے لیے flags
+
 bool showInstructionPanel = false;
 bool showHintPanel        = false;
 bool showTerminalPanel    = false;
 bool dialogueEnded        = false;
 Uint32 dialogueEndTime    = 0;
-bool showPasswordBox      = false;  // password box کب دکھائی دے گی
-bool passwordActive       = false;  // آیا user password field میں لکھ رہا ہے
-
+bool showPasswordBox      = false;  // password box 
+bool passwordActive       = false;  //  user password field 
 char passwordText[64]     = "";      // password input buffer
 Uint32 lastCursorToggle   = 0;
-bool   showCursor         = true;    // blink کرنے کے لیے
+bool   showCursor         = true;    // blink
 
-// Helper: چیک کرنے کے لیے آیا mouse کسی rect کے اندر ہے
+// Helper: mouse  rect 
 bool isInside(int x, int y, SDL_Rect rect) {
     return x >= rect.x && x <= rect.x + rect.w
         && y >= rect.y && y <= rect.y + rect.h;
 }
 
-// Helper: text render کر کے texture لوٹائے
+// Helper: text render   texture 
 SDL_Texture* renderText(SDL_Renderer* renderer, TTF_Font* font,
                         const char* text, SDL_Color color) {
     SDL_Surface* surf = TTF_RenderText_Blended(font, text, color);
@@ -52,7 +49,7 @@ int main(int argc, char* argv[]) {
     if (TTF_Init() == -1) return 1;
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) return 1;
 
-    // Window اور Renderer بنائیں
+    // Window  Renderer 
     SDL_Window* window = SDL_CreateWindow("Terminal War",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
@@ -60,12 +57,12 @@ int main(int argc, char* argv[]) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (!renderer) return 1;
 
-    // Fonts load کریں
+    // Fonts  
     TTF_Font* titleFont    = TTF_OpenFont("assets/fonts/Neon.ttf", 100);
     TTF_Font* dialogueFont = TTF_OpenFont("assets/fonts/dialogue_box_font.TTF", 28);
     if (!titleFont || !dialogueFont) return 1;
 
-    // Textures load کریں: background, character, icons, textbox (for panel کے لیے)
+    // Textures load : background, character, icons, textbox (for panel  )
     SDL_Texture* bgTexture        = SDL_CreateTextureFromSurface(renderer, IMG_Load("assets/images/FinalBackground.png"));
     SDL_Texture* characterTexture = SDL_CreateTextureFromSurface(renderer, IMG_Load("assets/images/Character.png"));
     SDL_Texture* iconInst         = SDL_CreateTextureFromSurface(renderer, IMG_Load("assets/images/icon_instruction.png"));
@@ -74,7 +71,7 @@ int main(int argc, char* argv[]) {
     SDL_Texture* textboxTex       = SDL_CreateTextureFromSurface(renderer, IMG_Load("assets/images/textbox.png"));
     Mix_Music*   bgMusic          = Mix_LoadMUS("assets/music/music.mp3");
 
-    // Title text تیار کریں
+    // Title text  
     SDL_Color white = {255,255,255,255};
     SDL_Surface* tsurf = TTF_RenderText_Solid(titleFont, "TERMINAL WAR", white);
     SDL_Texture*  titleTex = SDL_CreateTextureFromSurface(renderer, tsurf);
@@ -82,7 +79,7 @@ int main(int argc, char* argv[]) {
     SDL_FreeSurface(tsurf);
     SDL_Rect titleRect = { SCREEN_WIDTH/2 - titleW/2, SCREEN_HEIGHT/2 - titleH/2, titleW, titleH };
 
-    // Character slide-in کیلئے start position
+    // Character slide-in  start position
     SDL_Rect characterRect = { -200, 420, 200, 300 };
 
     // Dialogue setup
@@ -96,16 +93,16 @@ int main(int argc, char* argv[]) {
     SDL_Rect dialogueBox  = { 0, SCREEN_HEIGHT - 180, SCREEN_WIDTH, 150 };
     SDL_Rect dialogueRect = { 250, SCREEN_HEIGHT - 160, SCREEN_WIDTH - 280, 100 };
 
-    // Icons کے لیے rects (size 80x80)
+    // Icons   rects (size 80x80)
     SDL_Rect iconInstRect = {50, 30, 80, 80};
     SDL_Rect iconHintRect = {50, 130, 80, 80};
     SDL_Rect iconTermRect = {50, 230, 80, 80};
 
     // Password UI
     SDL_Rect pwdBoxRect     = { SCREEN_WIDTH - 360, 20, 300, 40 };
-    SDL_Rect submitBtnRect  = { SCREEN_WIDTH - 110,  20, 100, 40 };  // width بڑھا دیا
+    SDL_Rect submitBtnRect  = { SCREEN_WIDTH - 110,  20, 100, 40 };  // width  
 
-    // Submit اور password label کا placeholder؛ ہم dynamic render کریں گے
+    // Submit  password label  placeholder؛  dynamic render
     SDL_Texture* submitLabelTex = renderText(renderer, dialogueFont, "Submit", white);
     int subW, subH;
     SDL_QueryTexture(submitLabelTex, NULL, NULL, &subW, &subH);
@@ -113,21 +110,21 @@ int main(int argc, char* argv[]) {
                                  submitBtnRect.y + (submitBtnRect.h - subH)/2,
                                  subW, subH };
 
-    // Terminal subsystem initialize کریں (بعد میں shell کھولیں گے)
+    // Terminal subsystem initialize
     terminal_init(renderer, dialogueFont);
 
-    // Main loop کے flags
+    // Main loop  flags
     bool quit = false;
     bool fadingIn = true, showTitleFlag = true, bgMusicStarted = false, charSlideDone = false;
     SDL_Event e;
     int mouseX = 0, mouseY = 0, alpha = 0;
 
-    // Enable text input (password کیلئے)
+    // Enable text input 
     SDL_StartTextInput();
 
     while (!quit) {
         Uint32 nowTime = SDL_GetTicks();
-        // Cursor blink ہر 500ms پر
+        // Cursor blink 
         if (nowTime - lastCursorToggle > 500) {
             showCursor = !showCursor;
             lastCursorToggle = nowTime;
@@ -155,11 +152,10 @@ int main(int argc, char* argv[]) {
                     showInstructionPanel = showHintPanel = false;
                     passwordActive = false;
                 }
-                // Submit button click (آگے logic add کیا جائے گا)
                 else if (showPasswordBox && isInside(mouseX, mouseY, submitBtnRect)) {
-                    // TODO: Password validation logic یہاں ڈالیں
+                    // TODO: Password validation logic 
                 }
-                // Password box پر click کر کے active toggle کریں
+                // Password box
                 else if (showPasswordBox && isInside(mouseX, mouseY, pwdBoxRect)) {
                     passwordActive = true;
                 } else {
@@ -186,7 +182,7 @@ int main(int argc, char* argv[]) {
                     }
                 }
             }
-            // Text input event (password کے لیے)
+            // Text input event (password 
             else if (e.type == SDL_TEXTINPUT && passwordActive) {
                 if (strlen(passwordText) + strlen(e.text.text) < sizeof(passwordText) - 1) {
                     strcat(passwordText, e.text.text);
@@ -197,7 +193,7 @@ int main(int argc, char* argv[]) {
                     passwordText[strlen(passwordText) - 1] = '\0';
                 }
             }
-            // Terminal panel event forward کریں
+            // Terminal panel event forward 
             if (showTerminalPanel) {
                 terminal_handle_event(&e, pwdBoxRect);
             }
@@ -207,7 +203,7 @@ int main(int argc, char* argv[]) {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        // Title animation دکھائیں
+        // Title animation 
         if (showTitleFlag) {
             SDL_SetTextureAlphaMod(titleTex, alpha);
             SDL_RenderCopy(renderer, titleTex, NULL, &titleRect);
@@ -222,14 +218,14 @@ int main(int argc, char* argv[]) {
                 if (alpha <= 0) showTitleFlag = false;
             }
         } else {
-            // Background اور music چلائیں
+            // Background 
             SDL_RenderCopy(renderer, bgTexture, NULL, NULL);
             if (!bgMusicStarted) {
                 Mix_PlayMusic(bgMusic, -1);
                 bgMusicStarted = true;
             }
 
-            // Dialogue box draw کریں
+            // Dialogue box 
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
             SDL_SetRenderDrawColor(renderer, 30, 30, 30, 180);
             SDL_RenderFillRect(renderer, &dialogueBox);
@@ -239,12 +235,12 @@ int main(int argc, char* argv[]) {
                 if (characterRect.x < 50) characterRect.x += 8;
                 else {
                     charSlideDone = true;
-                    showPasswordBox = true; // جب character slide ہو جائے تو password دِکھائیں
+                    showPasswordBox = true; 
                 }
             }
             SDL_RenderCopy(renderer, characterTexture, NULL, &characterRect);
 
-            // Typing effect + hide after 5 سیکنڈ
+            // Typing effect 
             if (charSlideDone) {
                 if (currentChar < dialogueLength) {
                     Uint32 now = SDL_GetTicks();
@@ -289,7 +285,7 @@ int main(int argc, char* argv[]) {
             SDL_RenderCopy(renderer, iconHint, NULL, &hint);
             SDL_RenderCopy(renderer, iconTerm, NULL, &term);
 
-            // Panel area بنائیں اور Instruction/Hints/Terminal دکھائیں
+            
             SDL_Rect panel = {
                 dialogueRect.x,
                 40,
@@ -315,7 +311,7 @@ int main(int argc, char* argv[]) {
                                    crossInst.x + crossInst.w, crossInst.y + crossInst.h);
                 SDL_RenderDrawLine(renderer, crossInst.x + crossInst.w, crossInst.y,
                                    crossInst.x, crossInst.y + crossInst.h);
-                // یہاں آپ dummy text ڈال سکتے ہیں
+               
             }
             // Hints Panel
             if (showHintPanel) {
